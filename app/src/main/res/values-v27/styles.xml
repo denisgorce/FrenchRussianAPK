@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <style name="Theme.RusseFR" parent="android:Theme.Material.NoTitleBar">
+    <style name="Theme.RusseFR" parent="android:Theme.Black.NoTitleBar">
         <item name="android:windowBackground">#080D24</item>
         <item name="android:statusBarColor">#080D24</item>
         <item name="android:navigationBarColor">#080D24</item>
@@ -10,5 +9,4 @@
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">false</item>
     </style>
-
 </resources>
