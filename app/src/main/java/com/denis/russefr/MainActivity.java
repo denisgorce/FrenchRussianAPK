@@ -11,6 +11,7 @@ import android.view.WindowManager;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebViewClient;
 
 public class MainActivity extends Activity {
@@ -36,6 +37,14 @@ public class MainActivity extends Activity {
 
         setupWebView();
         webView.loadUrl("file:///android_asset/www/index.html");
+    }
+
+    // JavaScript bridge — exposed as window.AndroidBridge in the WebView
+    public class AndroidBridge {
+        @JavascriptInterface
+        public void quit() {
+            finishAndRemoveTask();
+        }
     }
 
     private void setupWebView() {
@@ -72,6 +81,9 @@ public class MainActivity extends Activity {
 
         webView.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
         webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+
+        // Register JavaScript bridge
+        webView.addJavascriptInterface(new AndroidBridge(), "AndroidBridge");
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
