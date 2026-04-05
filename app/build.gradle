@@ -1,0 +1,49 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.denis.russefr'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.denis.russefr"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix ".debug"
+            debuggable true
+            minifyEnabled false
+        }
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    // Packaging: include all JSON assets
+    androidResources {
+        noCompress 'json'
+    }
+
+    packagingOptions {
+        resources {
+            excludes += ['/META-INF/LICENSE', '/META-INF/NOTICE']
+        }
+    }
+}
+
+dependencies {
+    // Pas de dépendances externes — app 100% WebView pure
+}

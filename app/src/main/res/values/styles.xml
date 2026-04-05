@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Theme sans ActionBar, fond noir de l'app -->
+    <style name="Theme.RusseFR" parent="android:Theme.Material.NoTitleBar.Fullscreen">
+        <item name="android:windowBackground">#080D24</item>
+        <item name="android:statusBarColor">#080D24</item>
+        <item name="android:navigationBarColor">#080D24</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">false</item>
+    </style>
+
+</resources>
