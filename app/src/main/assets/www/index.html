@@ -350,6 +350,7 @@ a{color:var(--gold);text-decoration:none}
 .pfr{font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;min-width:100px}
 .pmid{flex:1}.pru{font-size:.82rem;color:var(--gold);font-weight:700}
 .pme{font-size:.76rem;color:var(--text-dim);margin-top:2px}
+.spk-ex{width:26px!important;height:26px!important;font-size:.7rem!important;vertical-align:middle;margin-left:4px}
 .spkbtn{width:36px;height:36px;border-radius:50%;background:var(--gold-dim);
   border:1px solid var(--rim);color:var(--gold);font-size:1rem;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;transition:var(--t)}
@@ -714,10 +715,33 @@ const Store={
 /* ═══════════════════════════════════════
    TTS
 ═══════════════════════════════════════ */
-const TTS={ok:false,voice:null,cfg:{lang:'ru-RU',rate:.85,pitch:1,volume:1},
-  init(){if(!('speechSynthesis' in window))return;this.ok=true;const load=()=>{const v=speechSynthesis.getVoices();this.voice=v.find(x=>x.lang==='ru-RU'&&!x.name.includes('Google'))||v.find(x=>x.lang==='ru-RU')||v.find(x=>x.lang.startsWith('ru'))||null;};load();speechSynthesis.onvoiceschanged=load;},
-  speak(txt,onEnd){if(!this.ok)return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(txt);Object.assign(u,{lang:this.cfg.lang,rate:this.cfg.rate,pitch:this.cfg.pitch,volume:this.cfg.volume});if(this.voice)u.voice=this.voice;if(onEnd){u.onend=onEnd;u.onerror=onEnd;}speechSynthesis.speak(u);},
-  stop(){speechSynthesis.cancel();}
+const TTS={ok:false,_onEnd:null,_voice:null,
+  init(){
+    if(window.AndroidBridge&&typeof AndroidBridge.speak==='function'){this.ok=true;return;}
+    if('speechSynthesis' in window){this.ok=true;const load=()=>{const v=speechSynthesis.getVoices();this._voice=v.find(x=>x.lang==='ru-RU'&&!x.name.includes('Google'))||v.find(x=>x.lang==='ru-RU')||v.find(x=>x.lang.startsWith('ru'))||null;};load();speechSynthesis.onvoiceschanged=load;}
+  },
+  onNativeReady(){this.ok=true;},
+  onNativeDone(){if(this._onEnd){const cb=this._onEnd;this._onEnd=null;cb();}},
+  speak(txt,onEnd){
+    if(!this.ok)return;
+    this._onEnd=onEnd||null;
+    if(window.AndroidBridge&&typeof AndroidBridge.speak==='function'){
+      AndroidBridge.speak(txt);
+      if(onEnd){const t=Math.max(800,txt.length*90);setTimeout(()=>{if(this._onEnd===onEnd){this._onEnd=null;onEnd();}},t);}
+      return;
+    }
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(txt);
+    Object.assign(u,{lang:'ru-RU',rate:.85,pitch:1,volume:1});
+    if(this._voice)u.voice=this._voice;
+    if(onEnd){u.onend=onEnd;u.onerror=onEnd;}
+    speechSynthesis.speak(u);
+  },
+  stop(){
+    this._onEnd=null;
+    if(window.AndroidBridge&&typeof AndroidBridge.stopSpeak==='function'){AndroidBridge.stopSpeak();return;}
+    if('speechSynthesis' in window)speechSynthesis.cancel();
+  }
 };
 
 /* ═══════════════════════════════════════
@@ -875,7 +899,7 @@ function bVocab(vocab,cognates,mid,lid){
     h+=`<div class="vc">
       <div class="vfw"><div class="vfr">${x(w.fr)}</div><div class="vpr">${x(w.ru_pron)}</div>${w.gender?`<div class="vgn">(${x(w.gender)})</div>`:''}<button class="spkbtn" data-w="${enc(w.fr)}">🔊</button></div>
       <div class="vma"><div class="vru">${x(w.ru)}</div>
-        <div class="vex">${x(w.example_fr||'')}</div><div class="vexr">${x(w.example_ru||'')}</div>
+        <div class="vex">${x(w.example_fr||'')}${w.example_fr?`<button class="spkbtn spk-ex" data-w="${enc(w.example_fr)}">🔊</button>`:''}</div><div class="vexr">${x(w.example_ru||'')}</div>
         ${w.meaning_double?`<div class="vdbl">⚠️ ${x(w.meaning_double)}</div>`:''}
       </div>
       <button class="vadd${inD?' vok':''}" data-wd="${wd}">${inD?'✓':'+'}</button>
@@ -885,7 +909,7 @@ function bVocab(vocab,cognates,mid,lid){
   if(cognates&&cognates.length){
     h+='<div class="cogtit">🤝 Mots apparentés</div>';
     cognates.forEach(c=>{h+=`<div class="cogc"><div class="cogp">
-      <div><div class="cogfr">${x(c.fr)}</div><div class="cogpr">${x(c.fr_pron)}</div></div>
+      <div><div class="cogfr">${x(c.fr)}</div><div class="cogpr">${x(c.fr_pron)}</div><button class="spkbtn" data-w="${enc(c.fr)}">🔊</button></div>
       <span class="cogar">↔</span>
       <div><div class="cogru">${x(c.ru)}</div><div class="cogpr">${x(c.ru_pron)}</div></div>
     </div><div class="cogno">${x(c.note)}</div></div>`;});
@@ -919,10 +943,14 @@ function bCulture(c){
   if(c.bio)h+=card(c.bio.icon,c.bio.label,c.bio.name,`<p><strong style="color:var(--text)">${x(c.bio.name)}</strong><br><em style="color:var(--gold);font-size:.82rem">${x(c.bio.subtitle)}</em></p><p style="margin-top:10px">${x(c.bio.content)}</p>`);
   if(c.history)h+=card(c.history.icon,c.history.label,c.history.title,`<p><strong style="color:var(--text)">${x(c.history.title)}</strong></p><p style="margin-top:8px">${x(c.history.content)}</p>`);
   if(c.anecdote)h+=card(c.anecdote.icon,c.anecdote.label,c.anecdote.title,`<p><strong style="color:var(--text)">${x(c.anecdote.title)}</strong></p><p style="margin-top:8px">${x(c.anecdote.content)}</p>`);
-  if(c.expression){const e=c.expression;h+=card(e.icon,e.label,e.phrase,`<div class="eph">${x(e.phrase)}</div><div class="epr">[ ${x(e.pronunciation)} ]</div><div class="etr">${x(e.translation)}</div><div class="eus">${x(e.usage)}</div><div class="eex">${x(e.example)}</div>`);}
+  if(c.expression){const e=c.expression;h+=card(e.icon,e.label,e.phrase,`<div class="eph">${x(e.phrase)}<button class="spkbtn" data-w="${enc(e.phrase)}">🔊</button></div><div class="epr">[ ${x(e.pronunciation)} ]</div><div class="etr">${x(e.translation)}</div><div class="eus">${x(e.usage)}</div><div class="eex">${x(e.example)}</div>`);}
   if(c.destination){const d=c.destination;h+=card(d.icon,d.label,d.place,`<div class="dpl">${x(d.place)}</div><div class="dsu">${x(d.subtitle)}</div><p>${x(d.content)}</p>`);}
   h+='</div></div>';el.innerHTML=h;
   el.querySelectorAll('.cch').forEach(hdr=>hdr.addEventListener('click',()=>hdr.closest('.cc').classList.toggle('exp')));
+  el.querySelectorAll('.spkbtn').forEach(btn=>{btn.addEventListener('click',ev=>{ev.stopPropagation();
+    if(btn.classList.contains('spk')){TTS.stop();btn.classList.remove('spk');return;}
+    el.querySelectorAll('.spkbtn.spk').forEach(b=>b.classList.remove('spk'));
+    btn.classList.add('spk');TTS.speak(btn.dataset.w,()=>btn.classList.remove('spk'));});});
 }
 
 /* ═══════════════════════════════════════ QUIZ ═══ */
@@ -1064,7 +1092,7 @@ function rDList(){
     ${d.lid?`<span class="delc">L${d.lid}</span>`:''}
     <span class="decv">▾</span></div>
     <div class="deb">
-      ${d.exFr?`<div class="deef">🇷🇺 ${x(d.exFr)}</div>`:''}
+      ${d.exFr?`<div class="deef">🇷🇺 ${x(d.exFr)}<button class="spkbtn spk-ex" data-w="${enc(d.exFr)}">🔊</button></div>`:''}
       ${d.exRu?`<div class="deer">🇫🇷 ${x(d.exRu)}</div>`:''}
       ${d.double?`<div class="dedbl">⚠️ ${x(d.double)}</div>`:''}
       <div class="desp"><button class="spkbtn" data-w="${enc(d.fr)}">🔊</button></div>

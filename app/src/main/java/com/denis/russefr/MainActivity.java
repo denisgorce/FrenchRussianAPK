@@ -5,6 +5,8 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -14,9 +16,13 @@ import android.webkit.WebView;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebViewClient;
 
-public class MainActivity extends Activity {
+import java.util.Locale;
+
+public class MainActivity extends Activity implements TextToSpeech.OnInitListener {
 
     private WebView webView;
+    private TextToSpeech tts;
+    private boolean ttsReady = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,6 +38,9 @@ public class MainActivity extends Activity {
             getWindow().setDecorFitsSystemWindows(false);
         }
 
+        // Init Android TTS
+        tts = new TextToSpeech(this, this);
+
         setContentView(R.layout.activity_main);
         webView = findViewById(R.id.webview);
 
@@ -39,11 +48,70 @@ public class MainActivity extends Activity {
         webView.loadUrl("file:///android_asset/www/index.html");
     }
 
+    @Override
+    public void onInit(int status) {
+        if (status == TextToSpeech.SUCCESS) {
+            int result = tts.setLanguage(new Locale("ru", "RU"));
+            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                // Fallback: try generic Russian
+                tts.setLanguage(new Locale("ru"));
+            }
+            tts.setSpeechRate(0.85f);
+            tts.setPitch(1.0f);
+            ttsReady = true;
+
+            // Notify JS that TTS is ready
+            runOnUiThread(() -> {
+                if (webView != null) {
+                    webView.evaluateJavascript("if(window.TTS)TTS.onNativeReady();", null);
+                }
+            });
+
+            // Utterance listener to notify JS when speech ends
+            tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                @Override public void onStart(String utteranceId) {}
+                @Override public void onDone(String utteranceId) {
+                    runOnUiThread(() -> {
+                        if (webView != null) {
+                            webView.evaluateJavascript("if(window.TTS)TTS.onNativeDone();", null);
+                        }
+                    });
+                }
+                @Override public void onError(String utteranceId) {
+                    runOnUiThread(() -> {
+                        if (webView != null) {
+                            webView.evaluateJavascript("if(window.TTS)TTS.onNativeDone();", null);
+                        }
+                    });
+                }
+            });
+        }
+    }
+
     // JavaScript bridge — exposed as window.AndroidBridge in the WebView
     public class AndroidBridge {
         @JavascriptInterface
         public void quit() {
             finishAndRemoveTask();
+        }
+
+        @JavascriptInterface
+        public void speak(String text) {
+            if (ttsReady && tts != null) {
+                tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "tts_utterance");
+            }
+        }
+
+        @JavascriptInterface
+        public void stopSpeak() {
+            if (tts != null) {
+                tts.stop();
+            }
+        }
+
+        @JavascriptInterface
+        public boolean isTtsReady() {
+            return ttsReady;
         }
     }
 
@@ -114,6 +182,7 @@ public class MainActivity extends Activity {
     protected void onPause() {
         super.onPause();
         webView.onPause();
+        if (tts != null) tts.stop();
     }
 
     @Override
@@ -126,6 +195,10 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         if (webView != null) {
             webView.destroy();
+        }
+        if (tts != null) {
+            tts.stop();
+            tts.shutdown();
         }
         super.onDestroy();
     }
