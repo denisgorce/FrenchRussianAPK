@@ -852,7 +852,7 @@ function bPron(p){
   (p.words||[]).forEach(w=>{
     h+=`<div class="pc"><div class="pfr">${x(w.fr)}</div>
       <div class="pmid"><div class="pru">${x(w.ru_pron)}</div><div class="pme">${x(w.meaning)}</div></div>
-      ${TTS.ok?`<button class="spkbtn" data-w="${enc(w.fr)}">🔊</button>`:''}
+      <button class="spkbtn" data-w="${enc(w.fr)}">🔊</button>
     </div>`;
   });
   h+='</div></div>';el.innerHTML=h;
@@ -873,7 +873,7 @@ function bVocab(vocab,cognates,mid,lid){
     const inD=existing.has(w.fr)||_addW.has(w.fr);
     const wd=enc(JSON.stringify({fr:w.fr,ru:w.ru,pron:w.ru_pron,exFr:w.example_fr||'',exRu:w.example_ru||'',double:w.meaning_double||'',mid,lid}));
     h+=`<div class="vc">
-      <div class="vfw"><div class="vfr">${x(w.fr)}</div><div class="vpr">${x(w.ru_pron)}</div>${w.gender?`<div class="vgn">(${x(w.gender)})</div>`:''}</div>
+      <div class="vfw"><div class="vfr">${x(w.fr)}</div><div class="vpr">${x(w.ru_pron)}</div>${w.gender?`<div class="vgn">(${x(w.gender)})</div>`:''}<button class="spkbtn" data-w="${enc(w.fr)}">🔊</button></div>
       <div class="vma"><div class="vru">${x(w.ru)}</div>
         <div class="vex">${x(w.example_fr||'')}</div><div class="vexr">${x(w.example_ru||'')}</div>
         ${w.meaning_double?`<div class="vdbl">⚠️ ${x(w.meaning_double)}</div>`:''}
@@ -893,7 +893,7 @@ function bVocab(vocab,cognates,mid,lid){
   h+='</div>';el.innerHTML=h;
   el.querySelectorAll('.vc').forEach(card=>{
     card.addEventListener('click',e=>{
-      if(e.target.classList.contains('vadd'))return;
+      if(e.target.classList.contains('vadd')||e.target.classList.contains('spkbtn'))return;
       const show=card.querySelector('.vex').style.display!=='block';
       ['vex','vexr','vdbl'].forEach(cls=>{const d=card.querySelector('.'+cls);if(d)d.style.display=show?'block':'none';});
     });
@@ -905,6 +905,10 @@ function bVocab(vocab,cognates,mid,lid){
         if(Store.addWord(w)){btn.textContent='✓';btn.classList.add('vok');_addW.add(w.fr);toast('📚 «'+w.fr+'» ajouté','tg');}}catch(e){}
     });
   });
+  el.querySelectorAll('.spkbtn').forEach(btn=>{btn.addEventListener('click',ev=>{ev.stopPropagation();
+    if(btn.classList.contains('spk')){TTS.stop();btn.classList.remove('spk');return;}
+    el.querySelectorAll('.spkbtn.spk').forEach(b=>b.classList.remove('spk'));
+    btn.classList.add('spk');TTS.speak(btn.dataset.w,()=>btn.classList.remove('spk'));});});
 }
 
 function bCulture(c){
